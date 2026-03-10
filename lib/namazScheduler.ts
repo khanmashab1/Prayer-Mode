@@ -1,0 +1,58 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { scheduleNamazNotification, cancelAllScheduledNotifications, type PrayerMode } from './ringerMode';
+import { PrayerEntry } from './prayerAPI';
+
+const SCHEDULED_IDS_KEY = 'namaz_scheduled_ids';
+
+export async function schedulePrayersForToday(
+  entries: PrayerEntry[],
+  mode: PrayerMode,
+  durationMinutes: number
+): Promise<void> {
+  await cancelAllScheduledNotifications();
+
+  const now = new Date();
+  const ids: string[] = [];
+
+  for (const entry of entries) {
+    if (entry.timeDate > now) {
+      const id = await scheduleNamazNotification(
+        entry.name,
+        entry.timeDate,
+        mode,
+        durationMinutes
+      );
+      if (id) ids.push(id);
+    }
+  }
+
+  await AsyncStorage.setItem(SCHEDULED_IDS_KEY, JSON.stringify(ids));
+}
+
+export async function getScheduledIds(): Promise<string[]> {
+  try {
+    const raw = await AsyncStorage.getItem(SCHEDULED_IDS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function clearScheduledIds(): Promise<void> {
+  await AsyncStorage.removeItem(SCHEDULED_IDS_KEY);
+}
+
+export function isCurrentlyInNamazTime(
+  entries: PrayerEntry[],
+  durationMinutes: number
+): { active: boolean; prayerName: string | null } {
+  const now = new Date();
+  for (const entry of entries) {
+    const start = entry.timeDate;
+    const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+    if (now >= start && now < end) {
+      return { active: true, prayerName: entry.name };
+    }
+  }
+  return { active: false, prayerName: null };
+}
