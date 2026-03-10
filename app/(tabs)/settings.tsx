@@ -18,19 +18,9 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/colors';
 import { useApp } from '@/context/AppContext';
-import { PAKISTAN_CITIES, CALCULATION_METHODS, SCHOOLS, SILENT_DURATIONS, City } from '@/lib/cities';
-import { openDNDSettings } from '@/lib/ringerMode';
-import type { PrayerMode } from '@/lib/ringerMode';
+import { PAKISTAN_CITIES, CALCULATION_METHODS, SCHOOLS, City } from '@/lib/cities';
 
-type SheetType = 'city' | 'method' | 'school' | 'duration' | null;
-
-const PRAYER_DELAY_CONFIG = [
-  { name: 'Fajr',    icon: 'weather-sunset-up',    color: '#60A5FA' },
-  { name: 'Dhuhr',   icon: 'weather-sunny',         color: '#F59E0B' },
-  { name: 'Asr',     icon: 'weather-partly-cloudy', color: '#F97316' },
-  { name: 'Maghrib', icon: 'weather-sunset-down',   color: '#EF4444' },
-  { name: 'Isha',    icon: 'moon-waning-crescent',  color: '#A78BFA' },
-];
+type SheetType = 'city' | 'method' | 'school' | null;
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -40,25 +30,18 @@ export default function SettingsScreen() {
     isLocating,
     method,
     school,
-    silentDuration,
-    prayerMode,
     hijriOffset,
     ramadanMode,
     fajrAdj,
     maghribAdj,
-    namazDelays,
-    prayerEntries,
     enableGPS,
     setManualCity,
     setMethod,
     setSchool,
-    setSilentDuration,
-    setPrayerMode,
     setHijriOffset,
     setRamadanMode,
     setFajrAdj,
     setMaghribAdj,
-    setNamazDelay,
     refreshPrayerTimes,
   } = useApp();
 
@@ -98,30 +81,9 @@ export default function SettingsScreen() {
     setSheet(null);
   };
 
-  const handleDurationSelect = async (val: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await setSilentDuration(val);
-    setSheet(null);
-  };
-
-  const handleModeChange = async (mode: PrayerMode) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (mode === 'dnd') {
-      await openDNDSettings();
-    }
-    await setPrayerMode(mode);
-  };
-
   const handleHijriAdjust = async (delta: number) => {
     const newVal = Math.max(-2, Math.min(2, hijriOffset + delta));
     await setHijriOffset(newVal);
-  };
-
-  const handleNamazDelay = async (prayer: string, delta: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const current = namazDelays[prayer] ?? 0;
-    const newVal = Math.max(0, Math.min(120, current + delta));
-    await setNamazDelay(prayer, newVal);
   };
 
   const handleFajrAdj = async (delta: number) => {
@@ -296,135 +258,6 @@ export default function SettingsScreen() {
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.dim} />
             </Pressable>
-          </View>
-        </Animated.View>
-
-        {/* Namaz Mode */}
-        <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-          <Text style={styles.sectionTitle}>Namaz Mode</Text>
-          <View style={styles.card}>
-            <Pressable
-              style={styles.row}
-              onPress={() => handleModeChange('vibration')}
-            >
-              <View style={[styles.rowIcon, { backgroundColor: Colors.primary + '22' }]}>
-                <MaterialCommunityIcons name="vibrate" size={20} color={Colors.primary} />
-              </View>
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>Vibration</Text>
-                <Text style={styles.rowSub}>Phone vibrates during prayer</Text>
-              </View>
-              <View style={[styles.modeRadio, prayerMode === 'vibration' && styles.modeRadioActive]}>
-                {prayerMode === 'vibration' && <View style={styles.modeRadioDot} />}
-              </View>
-            </Pressable>
-
-            <View style={styles.divider} />
-
-            <Pressable
-              style={styles.row}
-              onPress={() => handleModeChange('dnd')}
-            >
-              <View style={[styles.rowIcon, { backgroundColor: Colors.gold + '22' }]}>
-                <MaterialCommunityIcons name="bell-off-outline" size={20} color={Colors.gold} />
-              </View>
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>Do Not Disturb</Text>
-                <Text style={styles.rowSub}>Silences all notifications</Text>
-              </View>
-              <View style={[styles.modeRadio, prayerMode === 'dnd' && styles.modeRadioDND]}>
-                {prayerMode === 'dnd' && <View style={[styles.modeRadioDot, { backgroundColor: Colors.gold }]} />}
-              </View>
-            </Pressable>
-
-            {prayerMode === 'dnd' && Platform.OS === 'android' && (
-              <>
-                <View style={styles.divider} />
-                <Pressable style={styles.row} onPress={openDNDSettings}>
-                  <View style={[styles.rowIcon, { backgroundColor: Colors.danger + '22' }]}>
-                    <MaterialCommunityIcons name="shield-alert-outline" size={20} color={Colors.danger} />
-                  </View>
-                  <View style={styles.rowText}>
-                    <Text style={[styles.rowTitle, { color: Colors.danger }]}>Grant DND Permission</Text>
-                    <Text style={styles.rowSub}>Open Android notification settings</Text>
-                  </View>
-                  <Ionicons name="open-outline" size={16} color={Colors.dim} />
-                </Pressable>
-              </>
-            )}
-
-            <View style={styles.divider} />
-
-            <Pressable style={styles.row} onPress={() => setSheet('duration')}>
-              <View style={[styles.rowIcon, { backgroundColor: '#14B8A622' }]}>
-                <MaterialCommunityIcons name="timer-outline" size={20} color="#14B8A6" />
-              </View>
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>Silent Duration</Text>
-                <Text style={styles.rowSub}>{silentDuration} min — how long mode stays active</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.dim} />
-            </Pressable>
-          </View>
-        </Animated.View>
-
-        {/* Per-Prayer Start Delay */}
-        <Animated.View entering={FadeInDown.delay(230).duration(400)}>
-          <Text style={styles.sectionTitle}>Prayer Start Delay</Text>
-          <Text style={styles.sectionHint}>
-            Set how many minutes after the Adhan Namaz Mode should activate (e.g. 90 min for Dhuhr Iqamah at 1:30 PM).
-          </Text>
-          <View style={styles.card}>
-            {PRAYER_DELAY_CONFIG.map((p, idx) => {
-              const delay = namazDelays[p.name] ?? 0;
-              const entry = prayerEntries.find(e => e.name === p.name);
-              let activationLabel = '';
-              if (entry && delay > 0) {
-                const activationDate = new Date(entry.timeDate.getTime() + delay * 60 * 1000);
-                const h = activationDate.getHours();
-                const m = activationDate.getMinutes();
-                const period = h >= 12 ? 'PM' : 'AM';
-                const h12 = h % 12 || 12;
-                activationLabel = ` → ${h12}:${String(m).padStart(2, '0')} ${period}`;
-              }
-              return (
-                <React.Fragment key={p.name}>
-                  {idx > 0 && <View style={styles.divider} />}
-                  <View style={styles.row}>
-                    <View style={[styles.rowIcon, { backgroundColor: p.color + '22' }]}>
-                      <MaterialCommunityIcons name={p.icon as any} size={20} color={p.color} />
-                    </View>
-                    <View style={styles.rowText}>
-                      <Text style={styles.rowTitle}>{p.name}</Text>
-                      <Text style={styles.rowSub}>
-                        {delay === 0
-                          ? 'At adhan time'
-                          : `+${delay} min after adhan${activationLabel}`}
-                      </Text>
-                    </View>
-                    <View style={styles.stepper}>
-                      <Pressable
-                        style={styles.stepBtn}
-                        onPress={() => handleNamazDelay(p.name, -5)}
-                        disabled={delay <= 0}
-                      >
-                        <Ionicons name="remove" size={18} color={delay <= 0 ? Colors.border : Colors.text} />
-                      </Pressable>
-                      <Text style={[styles.stepValue, { minWidth: 36, textAlign: 'center' }]}>
-                        {delay === 0 ? '0m' : `+${delay}m`}
-                      </Text>
-                      <Pressable
-                        style={styles.stepBtn}
-                        onPress={() => handleNamazDelay(p.name, 5)}
-                        disabled={delay >= 120}
-                      >
-                        <Ionicons name="add" size={18} color={delay >= 120 ? Colors.border : Colors.text} />
-                      </Pressable>
-                    </View>
-                  </View>
-                </React.Fragment>
-              );
-            })}
           </View>
         </Animated.View>
 
@@ -644,36 +477,6 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* Duration Sheet */}
-      <Modal
-        visible={sheet === 'duration'}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setSheet(null)}
-      >
-        <View style={styles.sheetOverlay}>
-          <View style={[styles.sheet, styles.smallSheet]}>
-            <View style={styles.sheetHandle} />
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Silent Duration</Text>
-              <Pressable onPress={() => setSheet(null)}>
-                <Ionicons name="close" size={24} color={Colors.subtext} />
-              </Pressable>
-            </View>
-            {SILENT_DURATIONS.map((d, idx) => (
-              <React.Fragment key={d.value}>
-                <Pressable style={styles.sheetRow} onPress={() => handleDurationSelect(d.value)}>
-                  <Text style={[styles.sheetRowTitle, silentDuration === d.value && { color: Colors.primary }]}>
-                    {d.label}
-                  </Text>
-                  {silentDuration === d.value && <Ionicons name="checkmark" size={20} color={Colors.primary} />}
-                </Pressable>
-                {idx < SILENT_DURATIONS.length - 1 && <View style={styles.divider} />}
-              </React.Fragment>
-            ))}
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }

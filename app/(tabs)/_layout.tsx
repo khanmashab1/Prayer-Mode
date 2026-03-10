@@ -14,6 +14,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: 'moon', selected: 'moon.fill' }} />
         <Label>Prayer</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="namazmode">
+        <Icon sf={{ default: 'bell.slash', selected: 'bell.slash.fill' }} />
+        <Label>Namaz Mode</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
         <Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} />
         <Label>Settings</Label>
@@ -48,7 +52,7 @@ function ClassicTabLayout() {
           ) : null,
         tabBarLabelStyle: {
           fontFamily: 'Inter_500Medium',
-          fontSize: 11,
+          fontSize: 10,
           marginBottom: 4,
         },
       }}
@@ -60,6 +64,19 @@ function ClassicTabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={focused ? 'moon-waning-crescent' : 'moon-waning-crescent'}
+              size={22}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="namazmode"
+        options={{
+          title: 'Namaz Mode',
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? 'bell-off' : 'bell-off-outline'}
               size={22}
               color={color}
             />

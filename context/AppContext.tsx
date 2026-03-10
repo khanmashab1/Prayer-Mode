@@ -9,6 +9,7 @@ import {
   getWebGeolocation,
 } from '@/lib/locationService';
 import type { PrayerMode } from '@/lib/ringerMode';
+import { schedulePrayersForToday } from '@/lib/namazScheduler';
 
 const STORAGE_KEYS = {
   location: 'app_location',
@@ -170,6 +171,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshPrayerTimes();
     }
   }, [settings.location, settings.method, settings.school, settings.ramadanMode, settings.fajrAdj, settings.maghribAdj]);
+
+  // Auto-reschedule whenever prayer entries or Namaz Mode settings change
+  useEffect(() => {
+    if (prayerEntries.length > 0 && settings.onboardingDone) {
+      schedulePrayersForToday(
+        prayerEntries,
+        settings.prayerMode,
+        settings.silentDuration,
+        settings.namazDelays
+      ).catch(console.warn);
+    }
+  }, [prayerEntries, settings.prayerMode, settings.silentDuration, settings.namazDelays, settings.onboardingDone]);
 
   // Enable GPS mode: save preference + fetch immediately
   const enableGPS = useCallback(async () => {
