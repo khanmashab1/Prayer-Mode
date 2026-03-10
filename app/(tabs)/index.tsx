@@ -42,6 +42,7 @@ export default function HomeScreen() {
     locationMode,
     prayerMode,
     silentDuration,
+    namazDelays,
     ramadanMode,
     onboardingDone,
   } = useApp();
@@ -72,7 +73,7 @@ export default function HomeScreen() {
 
   const namazStatus =
     prayerEntries.length > 0
-      ? isCurrentlyInNamazTimeAt(prayerEntries, silentDuration, now)
+      ? isCurrentlyInNamazTimeAt(prayerEntries, silentDuration, namazDelays, now)
       : { active: false, prayerName: null };
 
   const glowAnim = useSharedValue(0);
@@ -112,9 +113,9 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (prayerEntries.length > 0 && onboardingDone) {
-      schedulePrayersForToday(prayerEntries, prayerMode, silentDuration).catch(console.warn);
+      schedulePrayersForToday(prayerEntries, prayerMode, silentDuration, namazDelays).catch(console.warn);
     }
-  }, [prayerEntries, prayerMode, silentDuration]);
+  }, [prayerEntries, prayerMode, silentDuration, namazDelays]);
 
   const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -377,10 +378,12 @@ function getCurrentAndNextPrayerAt(
 function isCurrentlyInNamazTimeAt(
   entries: PrayerEntry[],
   durationMinutes: number,
+  namazDelays: Record<string, number>,
   now: Date
 ): { active: boolean; prayerName: string | null } {
   for (const entry of entries) {
-    const start = entry.timeDate;
+    const delayMs = (namazDelays[entry.name] ?? 0) * 60 * 1000;
+    const start = new Date(entry.timeDate.getTime() + delayMs);
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
     if (now >= start && now < end) {
       return { active: true, prayerName: entry.name };

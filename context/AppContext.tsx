@@ -22,6 +22,7 @@ const STORAGE_KEYS = {
   onboardingDone: 'app_onboarding_done',
   fajrAdj: 'app_fajr_adj',
   maghribAdj: 'app_maghrib_adj',
+  namazDelays: 'app_namaz_delays',
 };
 
 interface AppSettings {
@@ -36,6 +37,7 @@ interface AppSettings {
   onboardingDone: boolean;
   fajrAdj: number;
   maghribAdj: number;
+  namazDelays: Record<string, number>;
 }
 
 interface AppContextValue extends AppSettings {
@@ -57,6 +59,7 @@ interface AppContextValue extends AppSettings {
   setOnboardingDone: () => Promise<void>;
   setFajrAdj: (v: number) => Promise<void>;
   setMaghribAdj: (v: number) => Promise<void>;
+  setNamazDelay: (prayer: string, minutes: number) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -78,8 +81,11 @@ async function loadSettings(): Promise<AppSettings> {
   const onboardingDone = map['app_onboarding_done'] === 'true';
   const fajrAdj = map['app_fajr_adj'] ? parseInt(map['app_fajr_adj'], 10) : -2;
   const maghribAdj = map['app_maghrib_adj'] ? parseInt(map['app_maghrib_adj'], 10) : 3;
+  const namazDelays: Record<string, number> = map['app_namaz_delays']
+    ? JSON.parse(map['app_namaz_delays'])
+    : { Fajr: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 };
 
-  return { location, locationMode, method, school, silentDuration, prayerMode, hijriOffset, ramadanMode, onboardingDone, fajrAdj, maghribAdj };
+  return { location, locationMode, method, school, silentDuration, prayerMode, hijriOffset, ramadanMode, onboardingDone, fajrAdj, maghribAdj, namazDelays };
 }
 
 async function fetchGPSLocation(): Promise<LocationResult | null> {
@@ -108,6 +114,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     onboardingDone: false,
     fajrAdj: -2,
     maghribAdj: 3,
+    namazDelays: { Fajr: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 },
   });
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [prayerEntries, setPrayerEntries] = useState<PrayerEntry[]>([]);
@@ -210,6 +217,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setFajrAdj = (v: number) => saveAndSet('fajrAdj', v as any, String(v));
   const setMaghribAdj = (v: number) => saveAndSet('maghribAdj', v as any, String(v));
 
+  const setNamazDelay = useCallback(async (prayer: string, minutes: number) => {
+    const updated = { ...settings.namazDelays, [prayer]: minutes };
+    await AsyncStorage.setItem(STORAGE_KEYS.namazDelays, JSON.stringify(updated));
+    setSettings(prev => ({ ...prev, namazDelays: updated }));
+  }, [settings.namazDelays]);
+
   const setOnboardingDone = async () => {
     await AsyncStorage.setItem(STORAGE_KEYS.onboardingDone, 'true');
     setSettings(prev => ({ ...prev, onboardingDone: true }));
@@ -236,8 +249,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setOnboardingDone,
       setFajrAdj,
       setMaghribAdj,
+      setNamazDelay,
     }),
-    [settings, prayerTimes, prayerEntries, isLoading, isLocating, error, refreshPrayerTimes, enableGPS, setManualCity, setLocation]
+    [settings, prayerTimes, prayerEntries, isLoading, isLocating, error, refreshPrayerTimes, enableGPS, setManualCity, setLocation, setNamazDelay]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

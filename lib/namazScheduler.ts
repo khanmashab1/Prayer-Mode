@@ -7,7 +7,8 @@ const SCHEDULED_IDS_KEY = 'namaz_scheduled_ids';
 export async function schedulePrayersForToday(
   entries: PrayerEntry[],
   mode: PrayerMode,
-  durationMinutes: number
+  durationMinutes: number,
+  namazDelays: Record<string, number> = {}
 ): Promise<void> {
   await cancelAllScheduledNotifications();
 
@@ -15,10 +16,13 @@ export async function schedulePrayersForToday(
   const ids: string[] = [];
 
   for (const entry of entries) {
-    if (entry.timeDate > now) {
+    const delayMs = (namazDelays[entry.name] ?? 0) * 60 * 1000;
+    const activationTime = new Date(entry.timeDate.getTime() + delayMs);
+
+    if (activationTime > now) {
       const id = await scheduleNamazNotification(
         entry.name,
-        entry.timeDate,
+        activationTime,
         mode,
         durationMinutes
       );
@@ -44,11 +48,13 @@ export async function clearScheduledIds(): Promise<void> {
 
 export function isCurrentlyInNamazTime(
   entries: PrayerEntry[],
-  durationMinutes: number
+  durationMinutes: number,
+  namazDelays: Record<string, number> = {}
 ): { active: boolean; prayerName: string | null } {
   const now = new Date();
   for (const entry of entries) {
-    const start = entry.timeDate;
+    const delayMs = (namazDelays[entry.name] ?? 0) * 60 * 1000;
+    const start = new Date(entry.timeDate.getTime() + delayMs);
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
     if (now >= start && now < end) {
       return { active: true, prayerName: entry.name };
