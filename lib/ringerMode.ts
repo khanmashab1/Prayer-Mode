@@ -47,19 +47,21 @@ export async function openDNDSettings(): Promise<void> {
   }
 }
 
-export function activateVibrationMode(durationMinutes: number): void {
+export function activateVibrationMode(_durationMinutes?: number): void {
   if (Platform.OS === 'web') return;
   try {
-    const pattern: number[] = [];
-    const totalMs = durationMinutes * 60 * 1000;
-    let elapsed = 0;
-    while (elapsed < totalMs) {
-      pattern.push(0, 500, 500);
-      elapsed += 1000;
-    }
-    Vibration.vibrate(pattern);
+    Vibration.vibrate([0, 700, 200, 700, 200, 700, 200, 700, 200, 700, 200, 700, 300, 400, 300, 400]);
   } catch (e) {
     console.warn('Vibration failed:', e);
+  }
+}
+
+export function testVibration(): void {
+  if (Platform.OS === 'web') return;
+  try {
+    Vibration.vibrate([0, 300, 150, 300, 150, 600]);
+  } catch (e) {
+    console.warn('Vibration test failed:', e);
   }
 }
 

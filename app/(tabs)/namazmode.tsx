@@ -25,7 +25,7 @@ import { Colors } from '@/constants/colors';
 import { useApp } from '@/context/AppContext';
 import { formatTime12 } from '@/lib/prayerAPI';
 import type { PrayerEntry } from '@/lib/prayerAPI';
-import { openDNDSettings } from '@/lib/ringerMode';
+import { openDNDSettings, testVibration } from '@/lib/ringerMode';
 import type { PrayerMode } from '@/lib/ringerMode';
 
 const PRAYER_ICONS: Record<string, string> = {
@@ -227,6 +227,19 @@ export default function NamazModeScreen() {
               )}
             </Pressable>
           </View>
+
+          {prayerMode === 'vibration' && Platform.OS !== 'web' && (
+            <Pressable
+              style={styles.testVibBtn}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                testVibration();
+              }}
+            >
+              <MaterialCommunityIcons name="vibrate" size={15} color={Colors.primary} />
+              <Text style={styles.testVibText}>Test Vibration</Text>
+            </Pressable>
+          )}
 
           {prayerMode === 'dnd' && Platform.OS === 'android' && (
             <Pressable style={styles.dndWarning} onPress={openDNDSettings}>
@@ -569,6 +582,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
+  },
+  testVibBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.primary + '15',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.primary + '40',
+  },
+  testVibText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+    color: Colors.primary,
   },
   dndWarning: {
     flexDirection: 'row',

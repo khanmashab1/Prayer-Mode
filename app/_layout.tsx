@@ -17,6 +17,7 @@ import { queryClient } from '@/lib/query-client';
 import { AppProvider } from '@/context/AppContext';
 import { Colors } from '@/constants/colors';
 import * as Notifications from 'expo-notifications';
+import { activateVibrationMode } from '@/lib/ringerMode';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -87,17 +88,19 @@ export default function RootLayout() {
 
       if (Platform.OS === 'android') {
         try {
+          await Notifications.deleteNotificationChannelAsync('namaz-mode').catch(() => {});
+          await Notifications.deleteNotificationChannelAsync('adhan').catch(() => {});
           await Notifications.setNotificationChannelAsync('namaz-mode', {
             name: 'Namaz Mode',
             importance: Notifications.AndroidImportance.HIGH,
-            vibrationPattern: [0, 500, 200, 500],
+            vibrationPattern: [0, 700, 200, 700, 200, 700, 200, 700, 200, 700],
             sound: null,
             enableVibrate: true,
           });
           await Notifications.setNotificationChannelAsync('adhan', {
             name: 'Adhan Alerts',
             importance: Notifications.AndroidImportance.HIGH,
-            vibrationPattern: [0, 300, 100, 300, 100, 300],
+            vibrationPattern: [0, 600, 200, 600, 200, 600, 200, 600],
             sound: null,
             enableVibrate: true,
           });
@@ -106,6 +109,37 @@ export default function RootLayout() {
         }
       }
     })();
+
+    const foregroundSub = Notifications.addNotificationReceivedListener((notification) => {
+      try {
+        const data = notification.request.content.data as Record<string, unknown>;
+        if (!data) return;
+        if (data.type === 'adhan') return;
+        if (data.mode === 'vibration') {
+          activateVibrationMode();
+        }
+      } catch (e) {
+        console.warn('Notification received handler error:', e);
+      }
+    });
+
+    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      try {
+        const data = response.notification.request.content.data as Record<string, unknown>;
+        if (!data) return;
+        if (data.type === 'adhan') return;
+        if (data.mode === 'vibration') {
+          activateVibrationMode();
+        }
+      } catch (e) {
+        console.warn('Notification response handler error:', e);
+      }
+    });
+
+    return () => {
+      foregroundSub.remove();
+      responseSub.remove();
+    };
   }, []);
 
   if (!fontsLoaded && !fontError) return null;
