@@ -35,9 +35,11 @@ export default function HomeScreen() {
     prayerTimes,
     prayerEntries,
     isLoading,
+    isLocating,
     error,
     refreshPrayerTimes,
     location,
+    locationMode,
     prayerMode,
     silentDuration,
     ramadanMode,
@@ -148,6 +150,25 @@ export default function HomeScreen() {
     );
   }
 
+  if (isLocating && !location) {
+    return (
+      <View style={[styles.centerScreen, { paddingTop: topPad }]}>
+        <LinearGradient
+          colors={['#060E0A', '#0A1A10', '#060E0A']}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.locatingWrap}>
+          <View style={styles.locatingIcon}>
+            <MaterialCommunityIcons name="crosshairs-gps" size={36} color={Colors.primary} />
+          </View>
+          <ActivityIndicator color={Colors.primary} size="large" style={{ marginTop: 8 }} />
+          <Text style={styles.loadingTitle}>Detecting Location</Text>
+          <Text style={styles.loadingText}>Getting your GPS coordinates…</Text>
+        </View>
+      </View>
+    );
+  }
+
   if (isLoading && !prayerTimes) {
     return (
       <View style={[styles.centerScreen, { paddingTop: topPad }]}>
@@ -156,7 +177,7 @@ export default function HomeScreen() {
           style={StyleSheet.absoluteFill}
         />
         <ActivityIndicator color={Colors.primary} size="large" />
-        <Text style={styles.loadingText}>Fetching prayer times...</Text>
+        <Text style={styles.loadingText}>Fetching prayer times…</Text>
       </View>
     );
   }
@@ -231,9 +252,20 @@ export default function HomeScreen() {
         {/* Location + Live Clock Row */}
         {location && (
           <Animated.View entering={FadeInDown.delay(80).duration(500)} style={styles.locationRow}>
-            <MaterialCommunityIcons name="map-marker" size={14} color={Colors.dim} />
-            <Text style={styles.locationText}>
-              {location.cityName || `${location.latitude.toFixed(2)}, ${location.longitude.toFixed(2)}`}
+            {isLocating ? (
+              <ActivityIndicator size={12} color={Colors.primary} />
+            ) : locationMode === 'gps' ? (
+              <MaterialCommunityIcons name="crosshairs-gps" size={13} color={Colors.primary} />
+            ) : (
+              <MaterialCommunityIcons name="map-marker" size={14} color={Colors.dim} />
+            )}
+            <Text style={[
+              styles.locationText,
+              isLocating && { color: Colors.primary },
+            ]}>
+              {isLocating
+                ? 'Updating location…'
+                : location.cityName || `${location.latitude.toFixed(2)}, ${location.longitude.toFixed(2)}`}
             </Text>
             <View style={styles.dotSep} />
             <LiveClock />
@@ -368,11 +400,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  loadingText: {
+  loadingTitle: {
     marginTop: 16,
-    fontSize: 15,
-    fontFamily: 'Inter_500Medium',
+    fontSize: 18,
+    fontFamily: 'Inter_700Bold',
+    color: Colors.text,
+  },
+  loadingText: {
+    marginTop: 6,
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
     color: Colors.subtext,
+    textAlign: 'center',
+  },
+  locatingWrap: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  locatingIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.primary + '18',
+    borderWidth: 1,
+    borderColor: Colors.primary + '40',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scroll: {
     paddingHorizontal: 0,

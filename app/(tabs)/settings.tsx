@@ -19,7 +19,6 @@ import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/colors';
 import { useApp } from '@/context/AppContext';
 import { PAKISTAN_CITIES, CALCULATION_METHODS, SCHOOLS, SILENT_DURATIONS, City } from '@/lib/cities';
-import { requestLocationPermission, getCurrentLocation, getWebGeolocation } from '@/lib/locationService';
 import { openDNDSettings } from '@/lib/ringerMode';
 import type { PrayerMode } from '@/lib/ringerMode';
 
@@ -29,6 +28,8 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const {
     location,
+    locationMode,
+    isLocating,
     method,
     school,
     silentDuration,
@@ -37,7 +38,8 @@ export default function SettingsScreen() {
     ramadanMode,
     fajrAdj,
     maghribAdj,
-    setLocation,
+    enableGPS,
+    setManualCity,
     setMethod,
     setSchool,
     setSilentDuration,
@@ -50,39 +52,19 @@ export default function SettingsScreen() {
   } = useApp();
 
   const [sheet, setSheet] = useState<SheetType>(null);
-  const [gpsLoading, setGpsLoading] = useState(false);
   const [citySearch, setCitySearch] = useState('');
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
   const handleGPS = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setGpsLoading(true);
-    try {
-      let result;
-      if (Platform.OS === 'web') {
-        result = await getWebGeolocation();
-      } else {
-        const granted = await requestLocationPermission();
-        if (!granted) {
-          setGpsLoading(false);
-          return;
-        }
-        result = await getCurrentLocation();
-      }
-      await setLocation(result);
-      await refreshPrayerTimes();
-    } catch (e) {
-      console.warn('GPS error:', e);
-    } finally {
-      setGpsLoading(false);
-    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await enableGPS();
   };
 
   const handleCitySelect = async (city: City) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await setLocation({
+    await setManualCity({
       latitude: city.latitude,
       longitude: city.longitude,
       cityName: city.name,
@@ -163,44 +145,105 @@ export default function SettingsScreen() {
         <Animated.View entering={FadeInDown.delay(80).duration(400)}>
           <Text style={styles.sectionTitle}>Location</Text>
           <View style={styles.card}>
-            <Pressable style={styles.row} onPress={handleGPS} disabled={gpsLoading}>
-              <View style={[styles.rowIcon, { backgroundColor: Colors.primary + '22' }]}>
-                {gpsLoading ? (
+
+            {/* GPS Row */}
+            <Pressable
+              style={styles.row}
+              onPress={handleGPS}
+              disabled={isLocating}
+            >
+              <View style={[
+                styles.rowIcon,
+                locationMode === 'gps'
+                  ? { backgroundColor: Colors.primary + '33' }
+                  : { backgroundColor: Colors.primary + '18' },
+              ]}>
+                {isLocating ? (
                   <ActivityIndicator color={Colors.primary} size="small" />
                 ) : (
-                  <MaterialCommunityIcons name="crosshairs-gps" size={20} color={Colors.primary} />
+                  <MaterialCommunityIcons
+                    name="crosshairs-gps"
+                    size={20}
+                    color={Colors.primary}
+                  />
                 )}
               </View>
               <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>Use GPS</Text>
-                <Text style={styles.rowSub}>Auto-detect my location</Text>
+                <Text style={styles.rowTitle}>
+                  Use GPS
+                  {locationMode === 'gps' && (
+                    <Text style={styles.activeModeTag}> · Auto</Text>
+                  )}
+                </Text>
+                <Text style={styles.rowSub}>
+                  {isLocating
+                    ? 'Detecting your location…'
+                    : locationMode === 'gps'
+                    ? 'Fetches on every app open'
+                    : 'Tap to enable auto-location'}
+                </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.dim} />
+              {locationMode === 'gps' ? (
+                <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+              ) : (
+                <Ionicons name="chevron-forward" size={18} color={Colors.dim} />
+              )}
             </Pressable>
 
             <View style={styles.divider} />
 
-            <Pressable style={styles.row} onPress={() => setSheet('city')}>
-              <View style={[styles.rowIcon, { backgroundColor: Colors.gold + '22' }]}>
-                <MaterialCommunityIcons name="city-variant-outline" size={20} color={Colors.gold} />
+            {/* Manual City Row */}
+            <Pressable
+              style={styles.row}
+              onPress={() => setSheet('city')}
+              disabled={isLocating}
+            >
+              <View style={[
+                styles.rowIcon,
+                locationMode === 'manual'
+                  ? { backgroundColor: Colors.gold + '33' }
+                  : { backgroundColor: Colors.gold + '18' },
+              ]}>
+                <MaterialCommunityIcons
+                  name="city-variant-outline"
+                  size={20}
+                  color={Colors.gold}
+                />
               </View>
               <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>Select City</Text>
+                <Text style={styles.rowTitle}>
+                  Select City
+                  {locationMode === 'manual' && location && (
+                    <Text style={styles.activeModeTagGold}> · Active</Text>
+                  )}
+                </Text>
                 <Text style={styles.rowSub}>
-                  {location?.cityName || 'Choose from Pakistan cities'}
+                  {locationMode === 'manual' && location?.cityName
+                    ? location.cityName
+                    : 'Choose from Pakistan cities'}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.dim} />
+              {locationMode === 'manual' && location ? (
+                <Ionicons name="checkmark-circle" size={20} color={Colors.gold} />
+              ) : (
+                <Ionicons name="chevron-forward" size={18} color={Colors.dim} />
+              )}
             </Pressable>
 
+            {/* Current coordinates info */}
             {location && (
               <>
                 <View style={styles.divider} />
                 <View style={styles.locationInfo}>
-                  <MaterialCommunityIcons name="map-marker-check" size={16} color={Colors.primary} />
+                  <MaterialCommunityIcons name="map-marker-check" size={14} color={Colors.primary} />
                   <Text style={styles.locationInfoText}>
-                    {location.source === 'gps' ? 'GPS: ' : ''}
-                    {location.cityName || `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`}
+                    {location.cityName
+                      ? location.cityName
+                      : `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`}
+                    {'  '}
+                    <Text style={styles.coordsText}>
+                      {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+                    </Text>
                   </Text>
                 </View>
               </>
@@ -635,6 +678,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter_500Medium',
     color: Colors.primary,
+    flex: 1,
+  },
+  coordsText: {
+    fontSize: 11,
+    fontFamily: 'Inter_400Regular',
+    color: Colors.dim,
+  },
+  activeModeTag: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+    color: Colors.primary,
+  },
+  activeModeTagGold: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+    color: Colors.gold,
   },
   modeRadio: {
     width: 22,
