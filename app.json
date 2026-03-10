@@ -2,6 +2,7 @@
   "expo": {
     "name": "Namaz Mode",
     "slug": "namaz-mode",
+    "owner": "mashabj",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -63,6 +64,14 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "origin": "https://replit.com/"
+      },
+      "eas": {
+        "projectId": "a904261b-5423-498f-906c-ff8290047ef3"
+      }
     }
   }
 }
