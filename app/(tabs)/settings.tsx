@@ -313,7 +313,7 @@ export default function SettingsScreen() {
           <View style={styles.card}>
             <View style={styles.row}>
               <View style={[styles.rowIcon, { backgroundColor: Colors.gold + '22' }]}>
-                <MaterialCommunityIcons name="calendar-moon" size={20} color={Colors.gold} />
+                <MaterialCommunityIcons name="calendar-month-outline" size={20} color={Colors.gold} />
               </View>
               <View style={styles.rowText}>
                 <Text style={styles.rowTitle}>Date Adjustment</Text>
