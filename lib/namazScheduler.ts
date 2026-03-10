@@ -10,27 +10,39 @@ export async function schedulePrayersForToday(
   durationMinutes: number,
   namazDelays: Record<string, number> = {}
 ): Promise<void> {
-  await cancelAllScheduledNotifications();
+  try {
+    await cancelAllScheduledNotifications();
 
-  const now = new Date();
-  const ids: string[] = [];
+    const now = new Date();
+    const ids: string[] = [];
 
-  for (const entry of entries) {
-    const delayMs = (namazDelays[entry.name] ?? 0) * 60 * 1000;
-    const activationTime = new Date(entry.timeDate.getTime() + delayMs);
+    for (const entry of entries) {
+      try {
+        const delayMs = (namazDelays[entry.name] ?? 0) * 60 * 1000;
+        const activationTime = new Date(entry.timeDate.getTime() + delayMs);
 
-    if (activationTime > now) {
-      const id = await scheduleNamazNotification(
-        entry.name,
-        activationTime,
-        mode,
-        durationMinutes
-      );
-      if (id) ids.push(id);
+        if (activationTime > now) {
+          const id = await scheduleNamazNotification(
+            entry.name,
+            activationTime,
+            mode,
+            durationMinutes
+          );
+          if (id) ids.push(id);
+        }
+      } catch (e) {
+        console.warn(`Failed to schedule ${entry.name}:`, e);
+      }
     }
-  }
 
-  await AsyncStorage.setItem(SCHEDULED_IDS_KEY, JSON.stringify(ids));
+    try {
+      await AsyncStorage.setItem(SCHEDULED_IDS_KEY, JSON.stringify(ids));
+    } catch {
+      // non-critical
+    }
+  } catch (e) {
+    console.warn('schedulePrayersForToday failed:', e);
+  }
 }
 
 export async function getScheduledIds(): Promise<string[]> {

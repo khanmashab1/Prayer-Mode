@@ -65,28 +65,62 @@ interface AppContextValue extends AppSettings {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
+function safeParseJSON<T>(raw: string | null, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function safeParseInt(raw: string | null, fallback: number): number {
+  if (!raw) return fallback;
+  const n = parseInt(raw, 10);
+  return isNaN(n) ? fallback : n;
+}
+
 async function loadSettings(): Promise<AppSettings> {
-  const keys = Object.values(STORAGE_KEYS);
-  const pairs = await AsyncStorage.multiGet(keys);
-  const map: Record<string, string | null> = {};
-  pairs.forEach(([k, v]) => { map[k] = v; });
+  try {
+    const keys = Object.values(STORAGE_KEYS);
+    const pairs = await AsyncStorage.multiGet(keys);
+    const map: Record<string, string | null> = {};
+    pairs.forEach(([k, v]) => { map[k] = v; });
 
-  const location = map['app_location'] ? JSON.parse(map['app_location']) : null;
-  const locationMode = (map['app_location_mode'] as 'gps' | 'manual') || 'manual';
-  const method = map['app_method'] ? parseInt(map['app_method'], 10) : 1;
-  const school = map['app_school'] ? parseInt(map['app_school'], 10) : 1;
-  const silentDuration = map['app_silent_duration'] ? parseInt(map['app_silent_duration'], 10) : 15;
-  const prayerMode: PrayerMode = (map['app_prayer_mode'] as PrayerMode) || 'vibration';
-  const hijriOffset = map['app_hijri_offset'] ? parseInt(map['app_hijri_offset'], 10) : 0;
-  const ramadanMode = map['app_ramadan_mode'] === 'true';
-  const onboardingDone = map['app_onboarding_done'] === 'true';
-  const fajrAdj = map['app_fajr_adj'] ? parseInt(map['app_fajr_adj'], 10) : -2;
-  const maghribAdj = map['app_maghrib_adj'] ? parseInt(map['app_maghrib_adj'], 10) : 3;
-  const namazDelays: Record<string, number> = map['app_namaz_delays']
-    ? JSON.parse(map['app_namaz_delays'])
-    : { Fajr: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 };
+    const location = safeParseJSON<LocationResult | null>(map['app_location'], null);
+    const locationMode = (map['app_location_mode'] as 'gps' | 'manual') || 'manual';
+    const method = safeParseInt(map['app_method'], 1);
+    const school = safeParseInt(map['app_school'], 1);
+    const silentDuration = safeParseInt(map['app_silent_duration'], 15);
+    const prayerMode: PrayerMode = (map['app_prayer_mode'] as PrayerMode) || 'vibration';
+    const hijriOffset = safeParseInt(map['app_hijri_offset'], 0);
+    const ramadanMode = map['app_ramadan_mode'] === 'true';
+    const onboardingDone = map['app_onboarding_done'] === 'true';
+    const fajrAdj = safeParseInt(map['app_fajr_adj'], -2);
+    const maghribAdj = safeParseInt(map['app_maghrib_adj'], 3);
+    const namazDelays: Record<string, number> = safeParseJSON(
+      map['app_namaz_delays'],
+      { Fajr: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 }
+    );
 
-  return { location, locationMode, method, school, silentDuration, prayerMode, hijriOffset, ramadanMode, onboardingDone, fajrAdj, maghribAdj, namazDelays };
+    return { location, locationMode, method, school, silentDuration, prayerMode, hijriOffset, ramadanMode, onboardingDone, fajrAdj, maghribAdj, namazDelays };
+  } catch (e) {
+    console.warn('loadSettings failed, using defaults:', e);
+    return {
+      location: null,
+      locationMode: 'manual',
+      method: 1,
+      school: 1,
+      silentDuration: 15,
+      prayerMode: 'vibration',
+      hijriOffset: 0,
+      ramadanMode: false,
+      onboardingDone: false,
+      fajrAdj: -2,
+      maghribAdj: 3,
+      namazDelays: { Fajr: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 },
+    };
+  }
 }
 
 async function fetchGPSLocation(): Promise<LocationResult | null> {

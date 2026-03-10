@@ -3,9 +3,26 @@ import * as Notifications from 'expo-notifications';
 
 export type PrayerMode = 'vibration' | 'dnd';
 
+export async function requestNotificationPermission(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  try {
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    if (existing === 'granted') return true;
+    const { status } = await Notifications.requestPermissionsAsync({
+      android: {
+        allowAlert: true,
+        allowBadge: false,
+        allowSound: false,
+      },
+    });
+    return status === 'granted';
+  } catch {
+    return false;
+  }
+}
+
 export async function requestDNDPermission(): Promise<boolean> {
   if (Platform.OS !== 'android') return false;
-
   try {
     const { status } = await Notifications.requestPermissionsAsync({
       android: {
@@ -31,18 +48,28 @@ export async function openDNDSettings(): Promise<void> {
 }
 
 export function activateVibrationMode(durationMinutes: number): void {
-  const pattern: number[] = [];
-  const totalMs = durationMinutes * 60 * 1000;
-  let elapsed = 0;
-  while (elapsed < totalMs) {
-    pattern.push(0, 500, 500);
-    elapsed += 1000;
+  if (Platform.OS === 'web') return;
+  try {
+    const pattern: number[] = [];
+    const totalMs = durationMinutes * 60 * 1000;
+    let elapsed = 0;
+    while (elapsed < totalMs) {
+      pattern.push(0, 500, 500);
+      elapsed += 1000;
+    }
+    Vibration.vibrate(pattern);
+  } catch (e) {
+    console.warn('Vibration failed:', e);
   }
-  Vibration.vibrate(pattern);
 }
 
 export function cancelVibration(): void {
-  Vibration.cancel();
+  if (Platform.OS === 'web') return;
+  try {
+    Vibration.cancel();
+  } catch {
+    // ignore
+  }
 }
 
 export async function scheduleNamazNotification(
@@ -51,12 +78,17 @@ export async function scheduleNamazNotification(
   mode: PrayerMode,
   durationMinutes: number
 ): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+
   try {
     const { status } = await Notifications.getPermissionsAsync();
     if (status !== 'granted') {
       const { status: newStatus } = await Notifications.requestPermissionsAsync();
       if (newStatus !== 'granted') return null;
     }
+
+    const triggerDate = new Date(prayerTime);
+    if (triggerDate <= new Date()) return null;
 
     const id = await Notifications.scheduleNotificationAsync({
       content: {
@@ -69,10 +101,11 @@ export async function scheduleNamazNotification(
         sound: false,
         vibrate: [0, 500, 200, 500],
         priority: Notifications.AndroidNotificationPriority.HIGH,
+        ...(Platform.OS === 'android' ? { channelId: 'namaz-mode' } : {}),
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: prayerTime,
+        date: triggerDate,
       },
     });
 
@@ -84,6 +117,7 @@ export async function scheduleNamazNotification(
 }
 
 export async function cancelAllScheduledNotifications(): Promise<void> {
+  if (Platform.OS === 'web') return;
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
   } catch {
@@ -92,6 +126,7 @@ export async function cancelAllScheduledNotifications(): Promise<void> {
 }
 
 export async function getScheduledNotifications() {
+  if (Platform.OS === 'web') return [];
   try {
     return await Notifications.getAllScheduledNotificationsAsync();
   } catch {
