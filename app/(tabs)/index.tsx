@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -27,8 +27,7 @@ import { useApp } from '@/context/AppContext';
 import { CountdownTimer } from '@/components/CountdownTimer';
 import { PrayerCard } from '@/components/PrayerCard';
 import { getCurrentAndNextPrayer } from '@/lib/prayerAPI';
-import { schedulePrayersForToday } from '@/lib/namazScheduler';
-import { isCurrentlyInNamazTime } from '@/lib/namazScheduler';
+import { schedulePrayersForToday, isCurrentlyInNamazTime } from '@/lib/namazScheduler';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -46,10 +45,33 @@ export default function HomeScreen() {
   } = useApp();
 
   const [refreshing, setRefreshing] = useState(false);
+  // Tick every 10 seconds to recompute current/next prayer and namaz status
+  const [now, setNow] = useState(() => new Date());
+  const lastDateRef = useRef(now.toDateString());
 
-  const namazStatus = prayerEntries.length > 0
-    ? isCurrentlyInNamazTime(prayerEntries, silentDuration)
-    : { active: false, prayerName: null };
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const next = new Date();
+      setNow(next);
+      // Auto-refresh prayer times at midnight (date change)
+      if (next.toDateString() !== lastDateRef.current) {
+        lastDateRef.current = next.toDateString();
+        refreshPrayerTimes().catch(console.warn);
+      }
+    }, 10_000);
+    return () => clearInterval(interval);
+  }, [refreshPrayerTimes]);
+
+  // Recompute live values on every tick
+  const { current, next, nextTomorrowFajr } =
+    prayerEntries.length > 0
+      ? getCurrentAndNextPrayerAt(prayerEntries, now)
+      : { current: null, next: null, nextTomorrowFajr: false };
+
+  const namazStatus =
+    prayerEntries.length > 0
+      ? isCurrentlyInNamazTimeAt(prayerEntries, silentDuration, now)
+      : { active: false, prayerName: null };
 
   const glowAnim = useSharedValue(0);
   const ringAnim = useSharedValue(1);
@@ -159,11 +181,6 @@ export default function HomeScreen() {
     );
   }
 
-  const { current, next, nextTomorrowFajr } =
-    prayerEntries.length > 0
-      ? getCurrentAndNextPrayer(prayerEntries)
-      : { current: null, next: null, nextTomorrowFajr: false };
-
   return (
     <View style={styles.root}>
       <LinearGradient
@@ -211,13 +228,15 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
-        {/* Location Badge */}
+        {/* Location + Live Clock Row */}
         {location && (
           <Animated.View entering={FadeInDown.delay(80).duration(500)} style={styles.locationRow}>
             <MaterialCommunityIcons name="map-marker" size={14} color={Colors.dim} />
             <Text style={styles.locationText}>
               {location.cityName || `${location.latitude.toFixed(2)}, ${location.longitude.toFixed(2)}`}
             </Text>
+            <View style={styles.dotSep} />
+            <LiveClock />
           </Animated.View>
         )}
 
@@ -275,13 +294,67 @@ export default function HomeScreen() {
               key={entry.name}
               entry={entry}
               isActive={current?.name === entry.name}
-              isNext={next?.name === entry.name && !namazStatus.active}
+              isNext={!!(next?.name === entry.name && !namazStatus.active)}
             />
           ))}
         </Animated.View>
       </ScrollView>
     </View>
   );
+}
+
+// ─── Live clock shown next to location ────────────────────────────────────────
+function LiveClock() {
+  const [time, setTime] = useState(() => formatClock(new Date()));
+
+  useEffect(() => {
+    const id = setInterval(() => setTime(formatClock(new Date())), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return <Text style={styles.liveClock}>{time}</Text>;
+}
+
+function formatClock(d: Date): string {
+  const h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const s = String(d.getSeconds()).padStart(2, '0');
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${m}:${s} ${period}`;
+}
+
+// ─── Time-aware helpers (accept explicit `now`) ────────────────────────────────
+import { PrayerEntry } from '@/lib/prayerAPI';
+
+function getCurrentAndNextPrayerAt(
+  entries: PrayerEntry[],
+  now: Date
+): { current: PrayerEntry | null; next: PrayerEntry; nextTomorrowFajr: boolean } {
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (entries[i].timeDate <= now) {
+      const current = entries[i];
+      const next = entries[i + 1] ?? null;
+      if (next) return { current, next, nextTomorrowFajr: false };
+      return { current, next: entries[0], nextTomorrowFajr: true };
+    }
+  }
+  return { current: null, next: entries[0], nextTomorrowFajr: false };
+}
+
+function isCurrentlyInNamazTimeAt(
+  entries: PrayerEntry[],
+  durationMinutes: number,
+  now: Date
+): { active: boolean; prayerName: string | null } {
+  for (const entry of entries) {
+    const start = entry.timeDate;
+    const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+    if (now >= start && now < end) {
+      return { active: true, prayerName: entry.name };
+    }
+  }
+  return { active: false, prayerName: null };
 }
 
 const styles = StyleSheet.create({
@@ -365,6 +438,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Inter_400Regular',
     color: Colors.dim,
+  },
+  dotSep: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: Colors.border,
+  },
+  liveClock: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    color: Colors.primary,
+    letterSpacing: 0.3,
   },
   activeBannerWrap: {
     marginHorizontal: 16,
