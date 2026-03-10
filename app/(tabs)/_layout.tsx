@@ -1,13 +1,20 @@
 import { Tabs } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { Platform, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { Colors } from '@/constants/colors';
 
+export const TAB_BAR_HEIGHT = 64;
+
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   const isIOS = Platform.OS === 'ios';
   const isWeb = Platform.OS === 'web';
+
+  const bottomInset = isWeb ? 34 : insets.bottom;
+  const tabBarHeight = isWeb ? 84 : TAB_BAR_HEIGHT + bottomInset;
 
   return (
     <Tabs
@@ -20,8 +27,11 @@ export default function TabLayout() {
           backgroundColor: isIOS ? 'transparent' : Colors.card,
           borderTopWidth: isWeb ? 1 : 0,
           borderTopColor: Colors.border,
+          borderTopLeftRadius: 0,
+          borderTopRightRadius: 0,
           elevation: 0,
-          height: isWeb ? 84 : 64,
+          height: tabBarHeight,
+          paddingBottom: bottomInset,
         },
         tabBarBackground: () =>
           isIOS ? (
@@ -32,7 +42,7 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontFamily: 'Inter_500Medium',
           fontSize: 10,
-          marginBottom: 4,
+          marginBottom: 2,
         },
       }}
     >

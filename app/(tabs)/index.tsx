@@ -118,10 +118,11 @@ export default function HomeScreen() {
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
+  const tabClearance = botPad + 64;
 
   if (isLocating && !location) {
     return (
-      <View style={[styles.centerScreen, { paddingTop: topPad }]}>
+      <View style={[styles.centerScreen, { paddingTop: topPad, paddingBottom: tabClearance }]}>
         <LinearGradient colors={['#060E0A', '#0A1A10', '#060E0A']} style={StyleSheet.absoluteFill} />
         <View style={styles.locatingWrap}>
           <View style={styles.locatingIcon}>
@@ -137,7 +138,7 @@ export default function HomeScreen() {
 
   if (!location) {
     return (
-      <View style={[styles.centerScreen, { paddingTop: topPad }]}>
+      <View style={[styles.centerScreen, { paddingTop: topPad, paddingBottom: tabClearance }]}>
         <LinearGradient colors={['#060E0A', '#0A1A10', '#060E0A']} style={StyleSheet.absoluteFill} />
         <View style={styles.emptyWrap}>
           <MaterialCommunityIcons name="map-marker-off-outline" size={56} color={Colors.dim} />
@@ -153,7 +154,7 @@ export default function HomeScreen() {
 
   if (isLoading && !prayerTimes) {
     return (
-      <View style={[styles.centerScreen, { paddingTop: topPad }]}>
+      <View style={[styles.centerScreen, { paddingTop: topPad, paddingBottom: tabClearance }]}>
         <LinearGradient colors={['#060E0A', '#0A1A10', '#060E0A']} style={StyleSheet.absoluteFill} />
         <ActivityIndicator color={Colors.primary} size="large" />
         <Text style={styles.loadingText}>Fetching prayer times…</Text>
@@ -163,7 +164,7 @@ export default function HomeScreen() {
 
   if (error) {
     return (
-      <View style={[styles.centerScreen, { paddingTop: topPad }]}>
+      <View style={[styles.centerScreen, { paddingTop: topPad, paddingBottom: tabClearance }]}>
         <LinearGradient colors={['#060E0A', '#0A1A10', '#060E0A']} style={StyleSheet.absoluteFill} />
         <View style={styles.emptyWrap}>
           <MaterialCommunityIcons name="wifi-off" size={56} color={Colors.danger} />
