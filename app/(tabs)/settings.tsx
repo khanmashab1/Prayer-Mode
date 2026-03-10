@@ -34,6 +34,7 @@ export default function SettingsScreen() {
     ramadanMode,
     fajrAdj,
     maghribAdj,
+    adhanEnabled,
     enableGPS,
     setManualCity,
     setMethod,
@@ -42,8 +43,25 @@ export default function SettingsScreen() {
     setRamadanMode,
     setFajrAdj,
     setMaghribAdj,
+    setAdhanEnabled,
     refreshPrayerTimes,
   } = useApp();
+
+  const PRAYER_ICONS: Record<string, string> = {
+    Fajr: 'weather-sunset-up',
+    Dhuhr: 'weather-sunny',
+    Asr: 'weather-partly-cloudy',
+    Maghrib: 'weather-sunset-down',
+    Isha: 'moon-waning-crescent',
+  };
+
+  const PRAYER_COLORS: Record<string, string> = {
+    Fajr: '#60A5FA',
+    Dhuhr: '#F59E0B',
+    Asr: '#F97316',
+    Maghrib: '#EF4444',
+    Isha: '#A78BFA',
+  };
 
   const [sheet, setSheet] = useState<SheetType>(null);
   const [citySearch, setCitySearch] = useState('');
@@ -344,6 +362,47 @@ export default function SettingsScreen() {
             )}
           </View>
         </Animated.View>
+
+        {/* Adhan Notifications */}
+        <Animated.View entering={FadeInDown.delay(380).duration(400)}>
+          <Text style={styles.sectionTitle}>Adhan Notifications</Text>
+          <View style={styles.card}>
+            {(['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'] as const).map((prayer, idx, arr) => {
+              const enabled = adhanEnabled[prayer] !== false;
+              const color = PRAYER_COLORS[prayer];
+              return (
+                <React.Fragment key={prayer}>
+                  <View style={styles.row}>
+                    <View style={[styles.rowIcon, { backgroundColor: color + '22' }]}>
+                      <MaterialCommunityIcons
+                        name={PRAYER_ICONS[prayer] as any}
+                        size={20}
+                        color={color}
+                      />
+                    </View>
+                    <View style={styles.rowText}>
+                      <Text style={styles.rowTitle}>{prayer}</Text>
+                      <Text style={styles.rowSub}>
+                        {enabled ? 'Notify at adhan time' : 'Notifications off'}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={enabled}
+                      onValueChange={async (v) => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        await setAdhanEnabled(prayer, v);
+                      }}
+                      trackColor={{ false: Colors.border, true: color + '80' }}
+                      thumbColor={enabled ? color : Colors.dim}
+                    />
+                  </View>
+                  {idx < arr.length - 1 && <View style={styles.divider} />}
+                </React.Fragment>
+              );
+            })}
+          </View>
+        </Animated.View>
+
       </ScrollView>
 
       {/* City Sheet */}

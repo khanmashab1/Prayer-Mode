@@ -24,7 +24,10 @@ const STORAGE_KEYS = {
   fajrAdj: 'app_fajr_adj',
   maghribAdj: 'app_maghrib_adj',
   namazDelays: 'app_namaz_delays',
+  adhanEnabled: 'app_adhan_enabled',
 };
+
+const DEFAULT_ADHAN_ENABLED = { Fajr: true, Dhuhr: true, Asr: true, Maghrib: true, Isha: true };
 
 interface AppSettings {
   location: LocationResult | null;
@@ -39,6 +42,7 @@ interface AppSettings {
   fajrAdj: number;
   maghribAdj: number;
   namazDelays: Record<string, number>;
+  adhanEnabled: Record<string, boolean>;
 }
 
 interface AppContextValue extends AppSettings {
@@ -61,6 +65,7 @@ interface AppContextValue extends AppSettings {
   setFajrAdj: (v: number) => Promise<void>;
   setMaghribAdj: (v: number) => Promise<void>;
   setNamazDelay: (prayer: string, minutes: number) => Promise<void>;
+  setAdhanEnabled: (prayer: string, enabled: boolean) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -102,8 +107,12 @@ async function loadSettings(): Promise<AppSettings> {
       map['app_namaz_delays'],
       { Fajr: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 }
     );
+    const adhanEnabled: Record<string, boolean> = safeParseJSON(
+      map['app_adhan_enabled'],
+      { ...DEFAULT_ADHAN_ENABLED }
+    );
 
-    return { location, locationMode, method, school, silentDuration, prayerMode, hijriOffset, ramadanMode, onboardingDone, fajrAdj, maghribAdj, namazDelays };
+    return { location, locationMode, method, school, silentDuration, prayerMode, hijriOffset, ramadanMode, onboardingDone, fajrAdj, maghribAdj, namazDelays, adhanEnabled };
   } catch (e) {
     console.warn('loadSettings failed, using defaults:', e);
     return {
@@ -119,6 +128,7 @@ async function loadSettings(): Promise<AppSettings> {
       fajrAdj: -2,
       maghribAdj: 3,
       namazDelays: { Fajr: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 },
+      adhanEnabled: { ...DEFAULT_ADHAN_ENABLED },
     };
   }
 }
@@ -150,6 +160,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     fajrAdj: -2,
     maghribAdj: 3,
     namazDelays: { Fajr: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 },
+    adhanEnabled: { ...DEFAULT_ADHAN_ENABLED },
   });
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [prayerEntries, setPrayerEntries] = useState<PrayerEntry[]>([]);
@@ -213,10 +224,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         prayerEntries,
         settings.prayerMode,
         settings.silentDuration,
-        settings.namazDelays
+        settings.namazDelays,
+        settings.adhanEnabled
       ).catch(console.warn);
     }
-  }, [prayerEntries, settings.prayerMode, settings.silentDuration, settings.namazDelays, settings.onboardingDone]);
+  }, [prayerEntries, settings.prayerMode, settings.silentDuration, settings.namazDelays, settings.adhanEnabled, settings.onboardingDone]);
 
   // Enable GPS mode: save preference + fetch immediately
   const enableGPS = useCallback(async () => {
@@ -270,6 +282,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSettings(prev => ({ ...prev, namazDelays: updated }));
   }, [settings.namazDelays]);
 
+  const setAdhanEnabled = useCallback(async (prayer: string, enabled: boolean) => {
+    const updated = { ...settings.adhanEnabled, [prayer]: enabled };
+    await AsyncStorage.setItem(STORAGE_KEYS.adhanEnabled, JSON.stringify(updated));
+    setSettings(prev => ({ ...prev, adhanEnabled: updated }));
+  }, [settings.adhanEnabled]);
+
   const setOnboardingDone = async () => {
     await AsyncStorage.setItem(STORAGE_KEYS.onboardingDone, 'true');
     setSettings(prev => ({ ...prev, onboardingDone: true }));
@@ -297,8 +315,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setFajrAdj,
       setMaghribAdj,
       setNamazDelay,
+      setAdhanEnabled,
     }),
-    [settings, prayerTimes, prayerEntries, isLoading, isLocating, error, refreshPrayerTimes, enableGPS, setManualCity, setLocation, setNamazDelay]
+    [settings, prayerTimes, prayerEntries, isLoading, isLocating, error, refreshPrayerTimes, enableGPS, setManualCity, setLocation, setNamazDelay, setAdhanEnabled]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

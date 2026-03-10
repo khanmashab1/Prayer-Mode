@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -246,40 +247,19 @@ export default function HomeScreen() {
           </Animated.View>
         )}
 
-        {/* Countdown Hero */}
+        {/* Prayer Ring Widget */}
         {next && (
           <Animated.View entering={FadeInDown.delay(100).duration(500)}>
-            <View style={styles.countdownCard}>
-              <View style={styles.countdownTop}>
-                <Text style={styles.countdownLabel}>
-                  {namazStatus.active ? 'Next Prayer' : 'Next'}
-                </Text>
-                <View style={[styles.nextPrayerBadge, { backgroundColor: (PRAYER_COLORS[next.name] || Colors.primary) + '22' }]}>
-                  <MaterialCommunityIcons
-                    name={(PRAYER_ICONS[next.name] || 'clock-outline') as any}
-                    size={14}
-                    color={PRAYER_COLORS[next.name] || Colors.primary}
-                  />
-                  <Text style={[styles.nextPrayerBadgeText, { color: PRAYER_COLORS[next.name] || Colors.primary }]}>
-                    {next.name}
-                  </Text>
-                </View>
-              </View>
-              <LiveCountdown targetDate={next.timeDate} tomorrowFajr={nextTomorrowFajr} />
-              <View style={styles.countdownBottom}>
-                <Text style={styles.countdownTimeLabel}>
-                  {formatTime12(next.time)}
-                  {(namazDelays[next.name] ?? 0) > 0 && (
-                    <Text style={styles.countdownDelayNote}>
-                      {' '}· Namaz Mode +{namazDelays[next.name]}m
-                    </Text>
-                  )}
-                </Text>
-                {nextTomorrowFajr && (
-                  <Text style={styles.tomorrowLabel}>Tomorrow</Text>
-                )}
-              </View>
-            </View>
+            <PrayerRingWidget
+              next={next}
+              prevDate={
+                nextTomorrowFajr
+                  ? prayerEntries[prayerEntries.length - 1]?.timeDate ?? new Date(Date.now() - 6 * 3600 * 1000)
+                  : current?.timeDate ?? new Date(next.timeDate.getTime() - 6 * 3600 * 1000)
+              }
+              tomorrowFajr={nextTomorrowFajr}
+              namazDelay={namazDelays[next.name] ?? 0}
+            />
           </Animated.View>
         )}
 
@@ -364,27 +344,101 @@ export default function HomeScreen() {
   );
 }
 
-// ─── Live countdown ───────────────────────────────────────────────────────────
-function LiveCountdown({ targetDate, tomorrowFajr }: { targetDate: Date; tomorrowFajr: boolean }) {
-  const [display, setDisplay] = useState(() => calcCountdown(targetDate, tomorrowFajr));
+// ─── Prayer Ring Widget ────────────────────────────────────────────────────────
+const RING_SIZE = 260;
+const RING_CX = RING_SIZE / 2;
+const RING_CY = RING_SIZE / 2;
+const RING_R = 106;
+const RING_STROKE = 13;
+const RING_CIRC = 2 * Math.PI * RING_R;
 
-  useEffect(() => {
-    const id = setInterval(() => setDisplay(calcCountdown(targetDate, tomorrowFajr)), 1000);
-    return () => clearInterval(id);
-  }, [targetDate, tomorrowFajr]);
-
-  return <Text style={styles.countdownDigits}>{display}</Text>;
-}
-
-function calcCountdown(target: Date, tomorrowFajr: boolean): string {
-  let t = tomorrowFajr ? new Date(target.getTime()) : target;
-  if (tomorrowFajr) t.setDate(t.getDate() + 1);
-  let diff = t.getTime() - Date.now();
-  if (diff < 0) diff = 0;
+function computeRingState(targetDate: Date, prevDate: Date, tomorrowFajr: boolean) {
+  const now = Date.now();
+  const target = tomorrowFajr
+    ? targetDate.getTime() + 24 * 3600 * 1000
+    : targetDate.getTime();
+  const prev = prevDate.getTime();
+  const diff = Math.max(0, target - now);
+  const total = target - prev;
+  const progress = total > 0 ? diff / total : 0;
   const h = Math.floor(diff / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
   const s = Math.floor((diff % 60000) / 1000);
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  const display = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return { display, progress: Math.max(0, Math.min(1, progress)) };
+}
+
+function PrayerRingWidget({
+  next,
+  prevDate,
+  tomorrowFajr,
+  namazDelay,
+}: {
+  next: PrayerEntry;
+  prevDate: Date;
+  tomorrowFajr: boolean;
+  namazDelay: number;
+}) {
+  const color = PRAYER_COLORS[next.name] || Colors.primary;
+  const [state, setState] = useState(() => computeRingState(next.timeDate, prevDate, tomorrowFajr));
+
+  useEffect(() => {
+    const id = setInterval(() => setState(computeRingState(next.timeDate, prevDate, tomorrowFajr)), 1000);
+    return () => clearInterval(id);
+  }, [next.timeDate, prevDate, tomorrowFajr]);
+
+  const dashOffset = RING_CIRC * (1 - state.progress);
+
+  return (
+    <View style={styles.ringWrap}>
+      <View style={{ width: RING_SIZE, height: RING_SIZE }}>
+        <Svg width={RING_SIZE} height={RING_SIZE}>
+          <Defs>
+            <RadialGradient id="glow" cx="50%" cy="50%" r="50%">
+              <Stop offset="0%" stopColor={color} stopOpacity={0.15} />
+              <Stop offset="100%" stopColor={color} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Circle cx={RING_CX} cy={RING_CY} r={RING_R + 20} fill="url(#glow)" />
+          <Circle
+            cx={RING_CX} cy={RING_CY} r={RING_R}
+            fill="none" stroke="#162B1E"
+            strokeWidth={RING_STROKE}
+          />
+          <Circle
+            cx={RING_CX} cy={RING_CY} r={RING_R}
+            fill="none"
+            stroke={color}
+            strokeWidth={RING_STROKE}
+            strokeDasharray={RING_CIRC}
+            strokeDashoffset={dashOffset}
+            strokeLinecap="round"
+            rotation={-90}
+            origin={`${RING_CX},${RING_CY}`}
+          />
+        </Svg>
+        <View style={styles.ringCenter}>
+          <View style={[styles.ringPrayerBadge, { backgroundColor: color + '20' }]}>
+            <MaterialCommunityIcons
+              name={(PRAYER_ICONS[next.name] || 'clock-outline') as any}
+              size={12} color={color}
+            />
+            <Text style={[styles.ringPrayerLabel, { color }]}>{next.name}</Text>
+          </View>
+          <Text style={styles.ringCountdown}>{state.display}</Text>
+          <Text style={styles.ringAdhanTime}>{formatTime12(next.time)}</Text>
+          {namazDelay > 0 && (
+            <View style={styles.ringDelayBadge}>
+              <Text style={styles.ringDelayText}>+{namazDelay}m iqamah</Text>
+            </View>
+          )}
+          {tomorrowFajr && (
+            <Text style={styles.ringTomorrowLabel}>Tomorrow</Text>
+          )}
+        </View>
+      </View>
+    </View>
+  );
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -553,65 +607,63 @@ const styles = StyleSheet.create({
     color: Colors.gold + 'AA',
     marginTop: 2,
   },
-  // ── Countdown Card ──────────────────────────────────────────────────────────
-  countdownCard: {
-    marginHorizontal: 16,
-    backgroundColor: Colors.card,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    gap: 8,
-  },
-  countdownTop: {
-    flexDirection: 'row',
+  // ── Prayer Ring Widget ───────────────────────────────────────────────────────
+  ringWrap: {
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingVertical: 4,
   },
-  countdownLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: Colors.dim,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
+  ringCenter: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
   },
-  nextPrayerBadge: {
+  ringPrayerBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+    marginBottom: 2,
   },
-  nextPrayerBadgeText: {
+  ringPrayerLabel: {
     fontSize: 12,
     fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 0.4,
   },
-  countdownDigits: {
-    fontSize: 52,
+  ringCountdown: {
+    fontSize: 44,
     fontFamily: 'Inter_700Bold',
     color: Colors.text,
-    letterSpacing: 2,
+    letterSpacing: 1.5,
     textAlign: 'center',
   },
-  countdownBottom: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  countdownTimeLabel: {
+  ringAdhanTime: {
     fontSize: 13,
     fontFamily: 'Inter_500Medium',
     color: Colors.subtext,
+    marginTop: 1,
   },
-  countdownDelayNote: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    color: Colors.primary + 'CC',
+  ringDelayBadge: {
+    backgroundColor: Colors.primary + '1A',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
   },
-  tomorrowLabel: {
+  ringDelayText: {
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    color: Colors.primary,
+  },
+  ringTomorrowLabel: {
     fontSize: 11,
     fontFamily: 'Inter_500Medium',
     color: Colors.gold,
@@ -619,6 +671,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
+    marginTop: 2,
   },
   // ── Current prayer row ──────────────────────────────────────────────────────
   currentRow: {

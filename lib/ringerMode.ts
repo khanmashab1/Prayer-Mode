@@ -116,6 +116,42 @@ export async function scheduleNamazNotification(
   }
 }
 
+export async function scheduleAdhanNotification(
+  prayerName: string,
+  prayerTime: Date,
+): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return null;
+
+    const triggerDate = new Date(prayerTime);
+    if (triggerDate <= new Date()) return null;
+
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `${prayerName} Adhan`,
+        body: `It's time for ${prayerName} prayer`,
+        data: { prayerName, type: 'adhan' },
+        sound: false,
+        vibrate: [0, 300, 100, 300, 100, 300],
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+        ...(Platform.OS === 'android' ? { channelId: 'adhan' } : {}),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: triggerDate,
+      },
+    });
+
+    return id;
+  } catch (e) {
+    console.warn('Failed to schedule adhan notification:', e);
+    return null;
+  }
+}
+
 export async function cancelAllScheduledNotifications(): Promise<void> {
   if (Platform.OS === 'web') return;
   try {

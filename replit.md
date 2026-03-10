@@ -38,11 +38,12 @@ A minimal Android-focused Islamic prayer time app built with React Native + Expo
 5. **Schools** — Standard/Shafi (0), Hanafi (1)
 6. **Namaz Mode** — Vibration (React Native Vibration API) or DND (Android permission flow)
 7. **Silent Duration** — 10/15/20/30/45 minutes, stored in AsyncStorage
-8. **Live Countdown** — Ticking HH:MM:SS timer to next prayer
+8. **Live Countdown Ring Widget** — Beautiful SVG circular progress ring on home screen; ring depletes as next prayer approaches; shows prayer name badge, HH:MM:SS, adhan time, iqamah delay
 9. **Current/Next Prayer** — Auto-detects from time comparison; after Isha → tomorrow Fajr
 10. **Hijri Date** — Pulled from Aladhan API response; ±2 day manual offset
 11. **Ramadan Mode** — Auto-detects Hijri month 9; Fajr -2min, Maghrib +3min adjustable offsets
-12. **Prayer Scheduler** — `expo-notifications` schedules a local notification per prayer
+12. **Prayer Scheduler** — `expo-notifications` schedules both adhan + Namaz Mode notifications per prayer
+13. **Adhan Notifications** — Per-prayer toggle switches in Settings; fires at prayer time; separate Android notification channel `adhan`
 
 ## File Structure
 ```
@@ -77,6 +78,8 @@ lib/
 - `app_onboarding_done` — boolean
 - `app_fajr_adj` — Ramadan Fajr offset minutes (-2 default)
 - `app_maghrib_adj` — Ramadan Maghrib offset minutes (+3 default)
+- `app_adhan_enabled` — `{Fajr: bool, Dhuhr: bool, Asr: bool, Maghrib: bool, Isha: bool}` (all true default)
+- `app_namaz_delays` — iqamah delay per prayer in minutes
 
 ## Android Permissions (app.json)
 - `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`

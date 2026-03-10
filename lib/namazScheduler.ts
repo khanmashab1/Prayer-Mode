@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { scheduleNamazNotification, cancelAllScheduledNotifications, type PrayerMode } from './ringerMode';
+import { scheduleNamazNotification, scheduleAdhanNotification, cancelAllScheduledNotifications, type PrayerMode } from './ringerMode';
 import { PrayerEntry } from './prayerAPI';
 
 const SCHEDULED_IDS_KEY = 'namaz_scheduled_ids';
@@ -8,7 +8,8 @@ export async function schedulePrayersForToday(
   entries: PrayerEntry[],
   mode: PrayerMode,
   durationMinutes: number,
-  namazDelays: Record<string, number> = {}
+  namazDelays: Record<string, number> = {},
+  adhanEnabled: Record<string, boolean> = {}
 ): Promise<void> {
   try {
     await cancelAllScheduledNotifications();
@@ -18,6 +19,13 @@ export async function schedulePrayersForToday(
 
     for (const entry of entries) {
       try {
+        // Adhan notification at prayer time
+        if (adhanEnabled[entry.name] !== false && entry.timeDate > now) {
+          const adhanId = await scheduleAdhanNotification(entry.name, entry.timeDate);
+          if (adhanId) ids.push(adhanId);
+        }
+
+        // Namaz Mode notification at prayer time + iqamah delay
         const delayMs = (namazDelays[entry.name] ?? 0) * 60 * 1000;
         const activationTime = new Date(entry.timeDate.getTime() + delayMs);
 

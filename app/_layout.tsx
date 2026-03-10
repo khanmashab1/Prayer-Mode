@@ -94,6 +94,13 @@ export default function RootLayout() {
             sound: null,
             enableVibrate: true,
           });
+          await Notifications.setNotificationChannelAsync('adhan', {
+            name: 'Adhan Alerts',
+            importance: Notifications.AndroidImportance.HIGH,
+            vibrationPattern: [0, 300, 100, 300, 100, 300],
+            sound: null,
+            enableVibrate: true,
+          });
         } catch (e) {
           console.warn('Failed to create notification channel:', e);
         }
