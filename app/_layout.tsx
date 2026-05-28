@@ -17,7 +17,10 @@ import { queryClient } from '@/lib/query-client';
 import { AppProvider } from '@/context/AppContext';
 import { Colors } from '@/constants/colors';
 import * as Notifications from 'expo-notifications';
-import { activateVibrationMode } from '@/lib/ringerMode';
+import { activateVibrationMode, activateDNDMode } from '@/lib/ringerMode';
+// Side-effect import: registers the background task at module level before UI renders
+import '@/lib/backgroundTask';
+import { BG_NOTIFICATION_TASK } from '@/lib/backgroundTask';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -104,9 +107,23 @@ export default function RootLayout() {
             sound: null,
             enableVibrate: true,
           });
+          // Low-importance channel for the silent "restore to normal" notification
+          await Notifications.setNotificationChannelAsync('namazguard-restore', {
+            name: 'Prayer End (Restore)',
+            importance: Notifications.AndroidImportance.LOW,
+            sound: null,
+            enableVibrate: false,
+          });
         } catch (e) {
           console.warn('Failed to create notification channel:', e);
         }
+      }
+
+      // Register background notification task — fires even when app is fully closed
+      try {
+        await Notifications.registerTaskAsync(BG_NOTIFICATION_TASK);
+      } catch (e) {
+        console.warn('Failed to register background notification task:', e);
       }
     })();
 
@@ -115,8 +132,11 @@ export default function RootLayout() {
         const data = notification.request.content.data as Record<string, unknown>;
         if (!data) return;
         if (data.type === 'adhan') return;
+        const duration = typeof data.durationMinutes === 'number' ? data.durationMinutes : undefined;
         if (data.mode === 'vibration') {
-          activateVibrationMode();
+          activateVibrationMode(duration);
+        } else if (data.mode === 'dnd') {
+          activateDNDMode(duration);
         }
       } catch (e) {
         console.warn('Notification received handler error:', e);
@@ -128,8 +148,11 @@ export default function RootLayout() {
         const data = response.notification.request.content.data as Record<string, unknown>;
         if (!data) return;
         if (data.type === 'adhan') return;
+        const duration = typeof data.durationMinutes === 'number' ? data.durationMinutes : undefined;
         if (data.mode === 'vibration') {
-          activateVibrationMode();
+          activateVibrationMode(duration);
+        } else if (data.mode === 'dnd') {
+          activateDNDMode(duration);
         }
       } catch (e) {
         console.warn('Notification response handler error:', e);

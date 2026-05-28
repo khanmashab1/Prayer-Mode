@@ -129,7 +129,7 @@ export default function NamazModeScreen() {
       >
         {/* Title */}
         <Animated.View entering={FadeInDown.duration(400)} style={styles.titleRow}>
-          <Text style={styles.pageTitle}>Namaz Mode</Text>
+          <Text style={styles.pageTitle}>NamazGuard</Text>
           <Text style={styles.pageSub}>Automatically silences your phone during prayer</Text>
         </Animated.View>
 
@@ -244,7 +244,7 @@ export default function NamazModeScreen() {
           {prayerMode === 'dnd' && Platform.OS === 'android' && (
             <Pressable style={styles.dndWarning} onPress={openDNDSettings}>
               <MaterialCommunityIcons name="shield-alert-outline" size={16} color={Colors.gold} />
-              <Text style={styles.dndWarningText}>Tap to grant DND permission in Android Settings</Text>
+              <Text style={styles.dndWarningText}>Tap to grant NamazGuard access under Do Not Disturb</Text>
               <Ionicons name="open-outline" size={14} color={Colors.gold} />
             </Pressable>
           )}

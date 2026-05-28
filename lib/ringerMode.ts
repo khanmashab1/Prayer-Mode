@@ -1,5 +1,12 @@
 import { Vibration, Platform, Linking, Alert } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import {
+  getRingerMode,
+  setRingerMode,
+  checkDndAccess,
+  RINGER_MODE,
+} from 'react-native-ringer-mode';
+import { scheduleRestoreNotification } from './backgroundTask';
 
 export type PrayerMode = 'vibration' | 'dnd';
 
@@ -21,38 +28,101 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
+// Returns true if the app already has Notification Policy Access (required for DND + ringer changes)
 export async function requestDNDPermission(): Promise<boolean> {
   if (Platform.OS !== 'android') return false;
   try {
-    const { status } = await Notifications.requestPermissionsAsync({
-      android: {
-        allowAlert: true,
-        allowBadge: true,
-        allowSound: false,
-      },
-    });
-    return status === 'granted';
+    return (await checkDndAccess()) === true;
   } catch {
     return false;
   }
 }
 
+// Opens Settings → Apps → Special app access → Do Not Disturb access
+// NamazGuard appears in that list because ACCESS_NOTIFICATION_POLICY is declared in app.json
 export async function openDNDSettings(): Promise<void> {
+  if (Platform.OS !== 'android') return;
   try {
-    if (Platform.OS === 'android') {
-      await Linking.openSettings();
-    }
+    await Linking.sendIntent('android.settings.NOTIFICATION_POLICY_ACCESS_SETTINGS');
   } catch {
-    Alert.alert('Error', 'Could not open settings. Please open manually.');
+    try {
+      await Linking.openSettings();
+    } catch {
+      Alert.alert(
+        'Open Settings Manually',
+        'Go to Settings → Apps → Special app access → Do Not Disturb access → NamazGuard and enable it.'
+      );
+    }
   }
 }
 
-export function activateVibrationMode(_durationMinutes?: number): void {
+let _previousRingerMode: number | null = null;
+let _restoreTimer: ReturnType<typeof setTimeout> | null = null;
+
+function _clearRestoreTimer() {
+  if (_restoreTimer !== null) {
+    clearTimeout(_restoreTimer);
+    _restoreTimer = null;
+  }
+}
+
+// Sets device ringer to vibrate mode and auto-restores after durationMinutes
+export async function activateVibrationMode(durationMinutes?: number): Promise<void> {
   if (Platform.OS === 'web') return;
+
+  if (Platform.OS === 'android') {
+    try {
+      _clearRestoreTimer();
+      _previousRingerMode = (await getRingerMode()) ?? RINGER_MODE.normal;
+      await setRingerMode(RINGER_MODE.vibrate);
+
+      if (durationMinutes && durationMinutes > 0) {
+        // setTimeout restores when app is foreground; restore notification handles background/closed
+        _restoreTimer = setTimeout(() => { deactivateMode(); }, durationMinutes * 60 * 1000);
+        await scheduleRestoreNotification(new Date(Date.now() + durationMinutes * 60 * 1000));
+      }
+      return;
+    } catch (e) {
+      console.warn('setRingerMode(vibrate) failed, falling back to vibration pulse:', e);
+    }
+  }
+
+  // iOS fallback — can't change ringer mode, just pulse
+  Vibration.vibrate([0, 700, 200, 700, 200, 700, 200, 700]);
+}
+
+// Sets device ringer to silent (full DND) and auto-restores after durationMinutes
+export async function activateDNDMode(durationMinutes?: number): Promise<void> {
+  if (Platform.OS !== 'android') return;
   try {
-    Vibration.vibrate([0, 700, 200, 700, 200, 700, 200, 700, 200, 700, 200, 700, 300, 400, 300, 400]);
+    const hasPermission = (await checkDndAccess()) === true;
+    if (!hasPermission) {
+      await openDNDSettings();
+      return;
+    }
+    _clearRestoreTimer();
+    _previousRingerMode = (await getRingerMode()) ?? RINGER_MODE.normal;
+    await setRingerMode(RINGER_MODE.silent);
+
+    if (durationMinutes && durationMinutes > 0) {
+      _restoreTimer = setTimeout(() => { deactivateMode(); }, durationMinutes * 60 * 1000);
+      await scheduleRestoreNotification(new Date(Date.now() + durationMinutes * 60 * 1000));
+    }
   } catch (e) {
-    console.warn('Vibration failed:', e);
+    console.warn('setRingerMode(silent) failed:', e);
+  }
+}
+
+// Restores the ringer mode saved before namaz mode was activated
+export async function deactivateMode(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  _clearRestoreTimer();
+  try {
+    const restoreTo = (_previousRingerMode ?? RINGER_MODE.normal) as 0 | 1 | 2;
+    _previousRingerMode = null;
+    await setRingerMode(restoreTo);
+  } catch (e) {
+    console.warn('Failed to restore ringer mode:', e);
   }
 }
 

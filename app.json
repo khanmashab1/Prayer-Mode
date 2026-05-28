@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "Namaz Mode",
-    "slug": "namaz-mode",
+    "name": "NamazGuard",
+    "slug": "namazguard",
     "owner": "mashabj",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "namazmode",
+    "scheme": "namazguard",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -16,14 +16,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.namazmode",
+      "bundleIdentifier": "com.namazguard",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Used to calculate accurate prayer times for your location.",
         "NSLocationAlwaysUsageDescription": "Used to calculate accurate prayer times for your location."
       }
     },
     "android": {
-      "package": "com.namazmode",
+      "package": "com.namazguard",
       "adaptiveIcon": {
         "backgroundColor": "#060E0A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -38,7 +38,9 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_EXACT_ALARM",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.ACCESS_NOTIFICATION_POLICY",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {

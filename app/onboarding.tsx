@@ -89,10 +89,11 @@ export default function OnboardingScreen() {
 
           <Text style={styles.dndTitle}>Do Not Disturb</Text>
           <Text style={styles.dndBody}>
-            To automatically silence your phone during prayer times, Namaz Mode needs
+            To automatically silence your phone during prayer times, NamazGuard needs
             access to Do Not Disturb on Android.{'\n\n'}
-            Tap the button below to open settings and grant{' '}
-            <Text style={{ color: Colors.primary }}>Notification Policy Access</Text>.
+            Tap the button below to open settings and enable{' '}
+            <Text style={{ color: Colors.primary }}>NamazGuard</Text> under
+            {' '}<Text style={{ color: Colors.primary }}>Do Not Disturb access</Text>.
           </Text>
 
           <Pressable style={styles.primaryBtn} onPress={handleGrantDND}>
@@ -123,7 +124,7 @@ export default function OnboardingScreen() {
           <View style={styles.moonWrap}>
             <MaterialCommunityIcons name="moon-waning-crescent" size={56} color={Colors.gold} />
           </View>
-          <Text style={styles.title}>Namaz Mode</Text>
+          <Text style={styles.title}>NamazGuard</Text>
           <Text style={styles.subtitle}>
             Your phone will automatically silence{'\n'}during each prayer time.
           </Text>
